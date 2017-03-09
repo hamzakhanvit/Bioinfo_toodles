@@ -1,2 +1,2 @@
 # Bioinfo_toodles
-Day to day scripts for my personal use
+Scripts for my day to day use 
