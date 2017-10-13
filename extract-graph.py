@@ -21,6 +21,8 @@ __version__,
 __description__)
 
 subgraph=[]
+invisited=[]
+outvisited=[]
 
 
 def graph_to_dot(G, outputfile):
@@ -32,6 +34,8 @@ def graph_to_dot(G, outputfile):
 
 def outedges(G,nodename, degree):
     global subgraph
+    global outvisited
+    outvisited.append(nodename)
     if(degree==0):
        return
     else:
@@ -43,11 +47,14 @@ def outedges(G,nodename, degree):
         degree-=1
         for item in G.out_edges(nodename):
               #print "item=", item
-              outedges(G,item[1], degree)
+              if item[1] not in outvisited:
+                  outedges(G,item[1], degree)
 
 
 def inedges(G,nodename, degree):
     global subgraph
+    global invisited
+    invisited.append(nodename)
     if(degree==0):
        return
     else:
@@ -58,7 +65,8 @@ def inedges(G,nodename, degree):
         degree-=1
         for item in G.in_edges(nodename):
               #print "item=", item
-              inedges(G,item[0], degree)
+              if item[0] not in invisited: 
+                  inedges(G,item[0], degree)
 
 
 
