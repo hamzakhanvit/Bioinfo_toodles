@@ -93,6 +93,7 @@ def read_msa_compute_zygosity(inputfile, outputfile, percent, coverage):
             print "Ratio=", x
             #Added another check for coverage greater than the estimated average coverage
             if(int(vals[0])+int(vals[1])>=coverage):
+               print "Considered"
                out.write(x)
             print "Gap less than 10%"
             print count.most_common(1)
@@ -133,6 +134,7 @@ def main(argv):
    inputfile = ''
    outputfile = "output_msa.csv"
    percent=10
+   coverage=0
    try:
       opts, args = getopt.getopt(argv,"hi:o:p:c:",["ifile=","ofile=","percent=","coverage="])
    except getopt.GetoptError:
