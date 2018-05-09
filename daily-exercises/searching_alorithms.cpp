@@ -1,7 +1,7 @@
 /******************************************************************************
 Linear Search
 Binary Search
-
+Jump Search
 *******************************************************************************/
 
 #include <iostream>
@@ -37,6 +37,31 @@ int linear_search(vector<int> myvector,int elem){
     return -1;
 }
 
+int jump_search(std::vector<int> arr, int x){
+    int n = arr.size();
+    int step = std::sqrt(n);
+    int prev=0;
+    while(arr.at(min(step,n)-1)<x){
+        int prev = step;
+        step+=std::sqrt(n);
+        if(prev>=n){
+            return -1;
+        }
+    }    
+        
+    while((arr.at(prev))<x){
+        prev++;
+        if(prev>=n){
+            return -1;
+        }
+    }   
+    if((arr.at(prev))==x){
+        return prev;
+    }
+    return -1;
+}
+
+
 int main()
 {
     vector<int>myvector = vector<int>{1,2,3,4,5}; 
@@ -47,4 +72,9 @@ int main()
     index = binary_search(myvector,0, (myvector.size())-1,5);
     cout << "Binary Search index (-1 means absent) = " << index << "\n";
     return 0;
+    
+    index = jump_search(myvector,5);
+    cout << "Jump Search index (-1 means absent) = " << index << "\n";
+    return 0;
+    
 }
