@@ -3,6 +3,7 @@ Linear Search
 Binary Search
 Jump Search
 Interpolation Search
+Exponential Search
 *******************************************************************************/
 
 #include <iostream>
@@ -80,6 +81,21 @@ int interpolation_search(std::vector<int>arr, int x ){
 }
 
 
+int exponential_search(std::vector<int>arr, int x ){
+    //Uses binary search after finding a range of values closest to the searched element
+    if(arr[0]==x)
+       return 0;
+       
+    int i=1, n = arr.size()-1;
+    while(i<n && arr.at(i)<=x){
+        i*=2;
+    }
+    
+    return binary_search(arr, i/2, std::min(n,i), x);
+}
+
+
+
 int main()
 {
     vector<int>myvector = vector<int>{1,2,3,4,5}; 
@@ -98,5 +114,8 @@ int main()
     index = interpolation_search(myvector,5);
     cout << "Interpolation Search index (-1 means absent) = " << index << "\n";
     return 0;
+    
+    index = exponential_search(arr, 5);
+    cout << ((index==-1)?"Absent":"Present");
     
 }
