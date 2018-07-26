@@ -10,13 +10,9 @@ A script to analyze the performance of the tool, hetero
 import argparse
 import csv
 import os
-import vcf
 import re
 import math
 from collections import defaultdict
-from simplesam import Reader, Writer
-
-
 
 class Vertex:
     def __init__(self,key):
@@ -74,37 +70,122 @@ class Graph:
 
 
 class analyze_hetero(object):
+
+    BED_HEADERS = ['vcfchr','vcfstart','vcfend','kmerid','kmerstart','kmerend']
+
+    READBED_HEADERS = ['vcfchr','vcfstart','vcfend','readid','readstart','readend']
+   
+    READ_BARCODE = ['ID','barcode']
+ 
+    read_barcode_dict ={}
     
-    def __init__(self, samfile, vcfile, graph):
-        self.samfile = samfile
-        self.vcfile = vcfile
+    def __init__(self, bedfile, kmerbed, readbarcode, graph):
+        self.bedfile = bedfile
+        self.kmerbed = kmerbed
+        self.readbarcode = readbarcode
         self.graph = graph
 
-    def read_vcf(self):
+    def read_barcode(self):
         """
         Reads a VCF file and makes a dictionary 
 
         Args: None
-        Returns:dictionary of vcf records
+        Returns:dictionary of reads(key) and barcodes(value)
 
-        read_vcf()->dict
+        read_barcode()->dict
         """  
-        vcf_reader = vcf.Reader(open(self.vcfile))
-        #for record in vcf_reader:
-        #    print record   
+        in_file = csv.DictReader(open(self.readbarcode, 'r'), skipinitialspace=True,
+                               delimiter=' ', fieldnames=self.READ_BARCODE)        
+ 
+        for row in in_file:
+           self.read_barcode_dict[row['ID']] = row['barcode']
+        #print self.read_barcode_dict        
 
-    def read_sam(self):
+
+    def read_bed(self):
         """
-        Reads a SAM file and makes a dictionary 
+        Reads a bed file and makes a dictionary 
 
         Args: None
-        Returns:dictionary of SAM records
+        Returns:dictionary of bed records
 
-        read_sam()->dict
+        read_bed()->dict
         """
-        in_sam = Reader(open(self.samfile, 'r'))
-        #for record in in_sam:
-        #    print record.qname
+        read_bed_dict = defaultdict(list)
+        in_bed = csv.DictReader(open(self.bedfile, 'r'), skipinitialspace=True,
+                               dialect=csv, fieldnames=self.READBED_HEADERS)
+        next(in_bed)
+        countpos=0
+        countneg=0
+        for row in in_bed:
+            
+            #print "row=", row
+            #print "row['readid']=", row['readid']
+            read_id = re.sub(r'(/.)', '', row['readid'])
+            #print read_id
+            try:
+                #print "self.read_barcode_dict[read_id]=", self.read_barcode_dict[read_id]            
+                read_bed_dict[row['vcfchr']+row['vcfstart']].append(self.read_barcode_dict[read_id])
+                countpos+=1
+            except KeyError:
+                countneg+=1
+                
+        print "Countpos = ", countpos
+        print "Countneg = ", countneg
+ 
+    def read_kmer_bed(self):
+        """
+        Reads a kmer bed file, makes a dictionary,
+        computes kmers per SNP and indels per SNP,
+        writes output filed 
+
+        Args: None
+        Returns:None
+
+        read_bed()->file,file
+        """
+        kmer_bed_snp_dict = defaultdict(list)
+        kmer_bed_indel_dict = defaultdict(list)   
+        kmer_count_per_snp = {}     
+        kmer_count_per_indel = {}
+
+        in_bed = csv.DictReader(open(self.kmerbed, 'r'), skipinitialspace=True,
+                               dialect=csv, fieldnames=self.BED_HEADERS)
+        next(in_bed)
+        for row in in_bed:
+          
+           if(int(row['vcfend'])-int(row['vcfstart'])==1):
+               kmer_bed_snp_dict[row['vcfchr']+row['vcfstart']].append(row['kmerid'])
+           else:
+               kmer_bed_indel_dict[row['vcfchr']+row['vcfstart']].append(row['kmerid'])
+       
+
+        for key in kmer_bed_snp_dict:
+            kmer_bed_snp_dict[key] = list(set(kmer_bed_snp_dict[key]))
+            if(len(kmer_bed_snp_dict[key])) in kmer_count_per_snp:
+                kmer_count_per_snp[len(kmer_bed_snp_dict[key])]+=1
+            else:
+                kmer_count_per_snp[len(kmer_bed_snp_dict[key])]=1
+
+        for key in kmer_bed_indel_dict:
+            kmer_bed_indel_dict[key] = list(set(kmer_bed_indel_dict[key]))
+            if(len(kmer_bed_indel_dict[key])) in kmer_count_per_indel:
+                kmer_count_per_indel[len(kmer_bed_indel_dict[key])]+=1
+            else:
+                kmer_count_per_indel[len(kmer_bed_indel_dict[key])]=1
+
+        with open('kmer_count_per_snp.csv', 'wb') as f: 
+            f.write('kmer_per_snp,count\n')
+            for k, v in kmer_count_per_snp.items():
+                f.write(str(k) + ','+ str(v) + '\n')
+     
+       
+        with open('kmer_count_per_indel.csv', 'wb') as f:
+            f.write('kmer_per_indel,count\n')
+            for k, v in kmer_count_per_indel.items():
+                f.write(str(k) + ','+ str(v) + '\n')
+   
+
 
     def read_graph(self):
         """
@@ -143,13 +224,17 @@ def _parse_args():
                        default = 'None', required = True,
                        help = 'Graph file from hetero')
 
-    parser.add_argument('-v', '--vcf',
+    parser.add_argument('-b', '--readbarcodefile',
                        default = 'None', required=True,
-                       help = 'VCF file')
+                       help = 'Read barcode file')
 
-    parser.add_argument('-s', '--samfile',
+    parser.add_argument('-r', '--readbed',
                        default = 'None', required = True,
-                       help = 'Reads to reference alignment file(SAM)') 
+                       help = 'Read BED file intersecting with vcf') 
+ 
+    parser.add_argument('-k', '--kmerbed',
+                       default = 'None', required = True,
+                       help = 'Putative heterozygous kmers BED file intersecting with vcf') 
 
     args = parser.parse_args()
     return args
@@ -157,10 +242,11 @@ def _parse_args():
 def main():
     '''Parse arguments'''
     args = _parse_args()
-    obj = analyze_hetero(args.samfile, args.vcf, args.HeteroGraph)
-    obj.read_sam()
-    obj.read_vcf()
-    obj.read_graph()
+    obj = analyze_hetero(args.readbed, args.kmerbed, args.readbarcodefile, args.HeteroGraph)
+    obj.read_barcode()
+    obj.read_bed()
+    obj.read_kmer_bed()
+    #obj.read_graph()
 
 if __name__=='__main__':
     main()
