@@ -77,7 +77,8 @@ class analyze_hetero(object):
    
     READ_BARCODE = ['ID','barcode']
  
-    read_barcode_dict ={}
+    read_barcode_dict = {}
+    num_snps_per_barcode = {}
     
     def __init__(self, bedfile, kmerbed, readbarcode, graph):
         self.bedfile = bedfile
@@ -85,21 +86,42 @@ class analyze_hetero(object):
         self.readbarcode = readbarcode
         self.graph = graph
 
+
     def read_barcode(self):
         """
         Reads a VCF file and makes a dictionary 
 
         Args: None
-        Returns:dictionary of reads(key) and barcodes(value)
+        Returns:None
 
-        read_barcode()->dict
+        read_barcode()->None
         """  
         in_file = csv.DictReader(open(self.readbarcode, 'r'), skipinitialspace=True,
                                delimiter=' ', fieldnames=self.READ_BARCODE)        
  
         for row in in_file:
-           self.read_barcode_dict[row['ID']] = row['barcode']
-        #print self.read_barcode_dict        
+           self.read_barcode_dict[row['ID']] = row['barcode']         
+
+
+    @staticmethod
+    def find_common_snps_in_barcodes(read_bed_snp_dict):
+        #print read_bed_snp_dict
+        common_snps_dict = defaultdict(dict)
+        for snp in read_bed_snp_dict:
+            barcode_list = read_bed_snp_dict[snp]
+            #print barcode_list
+            for i in xrange(0, len(barcode_list)):
+                for j in xrange(0, len(barcode_list)):
+                    print "i =", i ,"  " ,barcode_list[i], " j = ", j, " ", barcode_list[j], "\n"
+                    if barcode_list[j] in common_snps_dict[barcode_list[i]] and barcode_list[i]!=barcode_list[j]:
+                        common_snps_dict[barcode_list[i]][barcode_list[j]]+=1
+                    if barcode_list[j] not in common_snps_dict[barcode_list[i]] and barcode_list[i]!=barcode_list[j]:
+                        common_snps_dict[barcode_list[i]][barcode_list[j]]=1
+        ''' 
+        for key1 in common_snps_dict:
+            for key2 in common_snps_dict[key1]:
+               print "Barcode ", key1, "," , key2, ",", common_snps_dict[key1][key2], "\n"                
+        '''
 
 
     def read_bed(self):
@@ -107,32 +129,44 @@ class analyze_hetero(object):
         Reads a bed file and makes a dictionary 
 
         Args: None
-        Returns:dictionary of bed records
+        Returns:None
 
-        read_bed()->dict
+        read_bed()->None
         """
-        read_bed_dict = defaultdict(list)
+        read_bed_snp_dict = defaultdict(list)
+        read_bed_indel_dict = defaultdict(list)
+        barcode_count_per_snp = {}     
+        barcode_count_per_indel = {}
+
+
         in_bed = csv.DictReader(open(self.bedfile, 'r'), skipinitialspace=True,
                                dialect=csv, fieldnames=self.READBED_HEADERS)
         next(in_bed)
-        countpos=0
-        countneg=0
+        
         for row in in_bed:
-            
-            #print "row=", row
-            #print "row['readid']=", row['readid']
-            read_id = re.sub(r'(/.)', '', row['readid'])
-            #print read_id
-            try:
-                #print "self.read_barcode_dict[read_id]=", self.read_barcode_dict[read_id]            
-                read_bed_dict[row['vcfchr']+row['vcfstart']].append(self.read_barcode_dict[read_id])
-                countpos+=1
-            except KeyError:
-                countneg+=1
-                
-        print "Countpos = ", countpos
-        print "Countneg = ", countneg
+            read_id = re.sub(r'(/.)', '', row['readid'])      
+            if(int(row['vcfend'])-int(row['vcfstart'])==1):    
+                read_bed_snp_dict[row['vcfchr']+row['vcfstart']].append(self.read_barcode_dict[read_id])
+            else:
+                read_bed_indel_dict[row['vcfchr']+row['vcfstart']].append(self.read_barcode_dict[read_id])
+
+        for key in read_bed_snp_dict:
+            read_bed_snp_dict[key] = list(set(read_bed_snp_dict[key]))
+            if(len(read_bed_snp_dict[key])) in barcode_count_per_snp:
+                barcode_count_per_snp[len(read_bed_snp_dict[key])]+=1
+            else:
+                barcode_count_per_snp[len(read_bed_snp_dict[key])]=1            
+           
+        for key in read_bed_indel_dict:
+            read_bed_indel_dict[key] = list(set(read_bed_indel_dict[key]))
+            if(len(read_bed_indel_dict[key])) in barcode_count_per_indel:
+                barcode_count_per_indel[len(read_bed_indel_dict[key])]+=1
+            else:
+                barcode_count_per_indel[len(read_bed_indel_dict[key])]=1
  
+        self.find_common_snps_in_barcodes(read_bed_snp_dict)
+
+
     def read_kmer_bed(self):
         """
         Reads a kmer bed file, makes a dictionary,
@@ -212,10 +246,11 @@ class analyze_hetero(object):
         for v in graph:
             for w in v.getConnections():
                 print("( %s , %s )" % (v.getId(), w.getId()))                     
+
  
 def _parse_args():
+    """Parse command line arguments"""
 
-    #Parse command line arguments
     parser = argparse.ArgumentParser(
         description = 'Analyze hetero output using alignment and VCF files')
 
@@ -240,7 +275,7 @@ def _parse_args():
     return args
 
 def main():
-    '''Parse arguments'''
+   
     args = _parse_args()
     obj = analyze_hetero(args.readbed, args.kmerbed, args.readbarcodefile, args.HeteroGraph)
     obj.read_barcode()
