@@ -114,17 +114,33 @@ class analyze_kmerbarcode(object):
         for barcodeA in self.barcode_dict:
             for barcodeB in self.barcode_dict[barcodeA]:
                 G.add_edge(barcodeA,barcodeB,weight=self.barcode_dict[barcodeA][barcodeB])
-    
-        #Remove edges with less than 35 edge weight
+                cc = sorted(nx.connected_components(G), key = len, reverse=True)
+                #print barcodeA, " ", barcodeB
+                #print "First component size = ", len(cc[0]),
+                if(len(cc)>1): 
+                    #print "Second component = ", len(cc[1])  
+                    if(len(cc[0]) > (len(cc[1])*5)):
+                        print barcodeA, " ", barcodeB
+                        print "First component size = ", len(cc[0]),"Second component = ", len(cc[1])
+                        G.remove_edge(barcodeA,barcodeB)
+                        cc = sorted(nx.connected_components(G), key = len, reverse=True)
+                        print "After removing -> First component size = ", len(cc[0]),\
+                              "Second component = ", len(cc[1]), "Third component = ", len(cc[2]),\
+                              "Fourth component = ", len(cc[3])
+ 
+        #Remove edges with less than kmer length +-5 edge weight
+        k_len = [41]
+        for i in range(0,4):k_len.append(k_len[-1]*2)
         for e in G.edges(data=True):
-            if(e[2]['weight'] < 35):
+            if(any(e[2]['weight'] < k+5 and e[2]['weight'] > k-5 for k in k_len))==False:
+            #if(e[2]['weight'] < 35):
                 G.remove_edge(e[0],e[1]) 
         nx.drawing.nx_agraph.write_dot(G,'file.dot')
 
         #Remove nodes with less than 5 degree
         nodes_to_remove=[]
         for node in G.nodes():
-            if G.degree(node)<10:
+            if G.degree(node)<8:
                 nodes_to_remove.append(node)  
 
         for node in nodes_to_remove: 
