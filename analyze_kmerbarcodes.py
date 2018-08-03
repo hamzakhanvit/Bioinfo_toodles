@@ -104,29 +104,93 @@ class analyze_kmerbarcode(object):
                              self.barcode_dict[a][b] += 1
             #pprint.pprint(dict(self.barcode_dict), width=1)
         
-   
- 
+    '''
+    def merge_sets(self):
+        """
+        Given a dictionary of kmers and barcodes, 
+        makes sets that can be clubbed together
+        """
+        barcode_dict = {'BX:Z:CAAG-1': {'BX:Z:TGAG-1': 10, 'BX:Z:CAAT-1': 38}, 'BX:Z:TACC-1': {'BX:Z:GTAG-1': 41, 'BX:Z:ATTC-1': 41, 'BX:Z:CGAA-1': 41, 'BX:Z:AGGG-1': 41}, 'BX:Z:CAAT-1': {'BX:Z:GATA-1': 39, 'BX:Z:AGCC-1': 39, 'BX:Z:CAGG-1': 41, 'BX:Z:TACG-1': 41}, 'BX:Z:AGCA-1': {'BX:Z:TGAC-1': 39, 'BX:Z:ACGT-1': 41}}
+        clusters = []
+        #clusters_member = defaultdict(list)
+        #setdict = defaultdict(set)
+        barcode_cluster_dict = {}
+        for barcodeA in self.barcode_dict:
+            barcodeA_sets = []
+            if barcode A in barcode_cluster_dict:
+            
+
+
+            else:
+                for barcodeB in self.barcode_dict[barcodeA]:
+                    if barcodeB in barcode_cluster_dict:
+                    
+                    else:
+                            
+            
+            for s in xrange(0,len(clusters)): 
+                if (barcodeA in clusters[s]):
+                    barcodeA_sets.append(s)
+                
+    '''                         
+
+    def merge_sets(self):
+        """
+        Given a dictionary of kmers and barcodes, 
+        makes sets that can be clubbed together
+        """
+        G = nx.Graph()
+        f_comp = ()
+        s_comp = ()
+        flag = 0
+        for barcodeA in self.barcode_dict:
+            for barcodeB in self.barcode_dict[barcodeA]:
+                if(len(f_comp)>10000 and len(s_comp)>10000):
+                    flag=1 
+                if(flag==0): 
+                    G.add_edge(barcodeA,barcodeB,weight=self.barcode_dict[barcodeA][barcodeB])
+                    cc = sorted(nx.connected_components(G), key = len, reverse=True)
+                    if(len(cc)>1):
+                        f_comp = cc[0]
+                        s_comp = cc[1]
+                        if(len(f_comp) > (len(s_comp)*5)):
+                            #print barcodeA, " ", barcodeB
+                            #print "First component size = ", len(cc[0]),"Second component = ", len(cc[1])
+                            G.remove_edge(barcodeA,barcodeB)
+                else:      
+                    if ((barcodeA not in f_comp and barcodeB not in s_comp)):
+                        G.add_edge(barcodeA,barcodeB,weight=self.barcode_dict[barcodeA][barcodeB])
+             
+                    if ((barcodeA in f_comp and barcodeB not in s_comp) or (barcodeB in f_comp and barcodeA not in s_comp)):
+                        G.add_edge(barcodeA,barcodeB,weight=self.barcode_dict[barcodeA][barcodeB])    
+
+
+        cc = sorted(nx.connected_components(G), key = len, reverse=True) 
+        print "Final First component size = ", len(cc[0]),"Second component = ", len(cc[1]), "Third component = ", len(cc[2])               
+        nx.drawing.nx_agraph.write_dot(G,'file_test.dot')
+    
+
     def make_graph(self):
         """
         Given a dictionary, creates a networkx graph
         """
         G = nx.Graph()
+        print "len(self.barcode_dict) = ", len(self.barcode_dict)
         for barcodeA in self.barcode_dict:
             for barcodeB in self.barcode_dict[barcodeA]:
                 G.add_edge(barcodeA,barcodeB,weight=self.barcode_dict[barcodeA][barcodeB])
                 cc = sorted(nx.connected_components(G), key = len, reverse=True)
-                #print barcodeA, " ", barcodeB
-                #print "First component size = ", len(cc[0]),
                 if(len(cc)>1): 
-                    #print "Second component = ", len(cc[1])  
                     if(len(cc[0]) > (len(cc[1])*5)):
-                        print barcodeA, " ", barcodeB
-                        print "First component size = ", len(cc[0]),"Second component = ", len(cc[1])
+                        #print barcodeA, " ", barcodeB
+                        #print "First component size = ", len(cc[0]),"Second component = ", len(cc[1])
                         G.remove_edge(barcodeA,barcodeB)
-                        cc = sorted(nx.connected_components(G), key = len, reverse=True)
-                        print "After removing -> First component size = ", len(cc[0]),\
-                              "Second component = ", len(cc[1]), "Third component = ", len(cc[2]),\
-                              "Fourth component = ", len(cc[3])
+                        #cc = sorted(nx.connected_components(G), key = len, reverse=True)
+                        #print "After removing -> First component size = ", len(cc[0]),\
+                        #      "Second component = ", len(cc[1]), "Third component = ", len(cc[2]),\
+                        #      "Fourth component = ", len(cc[3])
+
+        nx.drawing.nx_agraph.write_dot(G,'file_rough.dot')      
  
         #Remove edges with less than kmer length +-5 edge weight
         k_len = [41]
@@ -198,7 +262,8 @@ def main():
     args = _parse_args()
     obj = analyze_kmerbarcode(args.kmerbarcodefile)
     obj.read_barcodefile()
-    obj.make_graph()
+    #obj.make_graph()
+    obj.merge_sets()
 
 if __name__=='__main__':
     main()
