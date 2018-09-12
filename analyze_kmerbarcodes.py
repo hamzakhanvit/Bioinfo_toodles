@@ -134,6 +134,65 @@ class analyze_kmerbarcode(object):
                 
     '''                         
 
+    def debug(self):
+        """
+        Debugging graph formation and finding connected components
+        """
+        G = nx.Graph()
+        f_comp = ()
+        s_comp = ()
+        flag = 0
+        unadded_nodes = set()
+        for barcodeA in self.barcode_dict:
+            for barcodeB in self.barcode_dict[barcodeA]:
+                    print barcodeA, " ", barcodeB
+                    G.add_edge(barcodeA,barcodeB,weight=self.barcode_dict[barcodeA][barcodeB])
+                    cc = sorted(nx.connected_components(G), key = len, reverse=True)
+                    lens = []
+                    for x in cc:
+                         lens.append(len(x))
+                    print "Number of components = ", len(lens), ", First 5 compenents size = ", lens[:5]
+                    if(len(cc)>1 and len(cc[0])-len(cc[1])<(len(cc[0])/2) and flag == 0):
+                        flag = 1
+                    if(flag == 1 and len(cc)>1):
+                        f_comp = cc[0]
+                        s_comp = cc[1]
+                        if(len(f_comp) > (len(s_comp)*5)):
+                            print "Removing edge = ", barcodeA, " ", barcodeB
+                            #print "First component size = ", len(cc[0]),"Second component = ", len(cc[1])
+                            G.remove_edge(barcodeA,barcodeB)
+                    if(flag == 1 and len(cc)==1): 
+                        G.remove_edge(barcodeA,barcodeB)        
+                        print "Removing Edge = ", barcodeA, " ", barcodeB 
+
+       
+        G = nx.Graph()
+        for barcodeA in self.barcode_dict:
+            for barcodeB in self.barcode_dict[barcodeA]:
+                    #print barcodeA, " ", barcodeB
+                    G.add_edge(barcodeA,barcodeB,weight=self.barcode_dict[barcodeA][barcodeB])
+        
+        #Print graph degree
+        for node in G.nodes():
+            print "Node ", node, " has degree = ", G.degree(node)
+
+        #Print graph edge weights
+        edges_to_remove=[]
+        for edge in G.edges():
+            print "edge ", edge, " has edge weight = ", G[edge[0]][edge[1]]['weight']
+            if (G[edge[0]][edge[1]]['weight'] < 36  or G[edge[0]][edge[1]]['weight'] > 43):
+                edges_to_remove.append(edge[:2])
+
+        for edge in edges_to_remove:
+            G.remove_edge(*edge)
+
+        for node in G.nodes():
+            print "After Node ", node, " has degree = ", G.degree(node)
+        
+
+        
+        
+
     def merge_sets(self):
         """
         Given a dictionary of kmers and barcodes, 
@@ -143,6 +202,7 @@ class analyze_kmerbarcode(object):
         f_comp = ()
         s_comp = ()
         flag = 0
+        unadded_nodes = set()
         for barcodeA in self.barcode_dict:
             for barcodeB in self.barcode_dict[barcodeA]:
                 if(len(f_comp)>10000 and len(s_comp)>10000):
@@ -150,6 +210,10 @@ class analyze_kmerbarcode(object):
                 if(flag==0): 
                     G.add_edge(barcodeA,barcodeB,weight=self.barcode_dict[barcodeA][barcodeB])
                     cc = sorted(nx.connected_components(G), key = len, reverse=True)
+                    #lens = []
+                    #for x in cc:
+                    #     lens.append(len(x))
+                    #print "Number of components = ", len(lens), ", First 5 compenents size = ", lens[:5]
                     if(len(cc)>1):
                         f_comp = cc[0]
                         s_comp = cc[1]
@@ -159,14 +223,20 @@ class analyze_kmerbarcode(object):
                             G.remove_edge(barcodeA,barcodeB)
                 else:      
                     if ((barcodeA not in f_comp and barcodeB not in s_comp)):
-                        G.add_edge(barcodeA,barcodeB,weight=self.barcode_dict[barcodeA][barcodeB])
-             
+                        #G.add_edge(barcodeA,barcodeB,weight=self.barcode_dict[barcodeA][barcodeB])
+                        unadded_nodes.add((barcodeA,barcodeB))            
+
                     if ((barcodeA in f_comp and barcodeB not in s_comp) or (barcodeB in f_comp and barcodeA not in s_comp)):
                         G.add_edge(barcodeA,barcodeB,weight=self.barcode_dict[barcodeA][barcodeB])    
 
-
         cc = sorted(nx.connected_components(G), key = len, reverse=True) 
-        print "Final First component size = ", len(cc[0]),"Second component = ", len(cc[1]), "Third component = ", len(cc[2])               
+        f_comp = cc[0]
+        s_comp = cc[1]
+        print "Pre First component size = ", len(cc[0]),"Second component = ", len(cc[1]), "Third component = ", len(cc[2])   
+        for barcodeA, barcodeB in unadded_nodes:
+            if ((barcodeA in f_comp and barcodeB not in s_comp) or (barcodeB in f_comp and barcodeA not in s_comp)):
+                G.add_edge(barcodeA,barcodeB,weight=self.barcode_dict[barcodeA][barcodeB])  
+                          
         nx.drawing.nx_agraph.write_dot(G,'file_test.dot')
     
 
@@ -263,6 +333,7 @@ def main():
     obj = analyze_kmerbarcode(args.kmerbarcodefile)
     obj.read_barcodefile()
     #obj.make_graph()
+    obj.debug()
     obj.merge_sets()
 
 if __name__=='__main__':
