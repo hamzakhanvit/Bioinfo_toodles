@@ -15,6 +15,8 @@ import math
 import pprint
 from collections import defaultdict
 import networkx as nx
+import community
+import matplotlib.pyplot as plt
 
 class Vertex:
     def __init__(self,key):
@@ -240,6 +242,7 @@ class analyze_kmerbarcode(object):
         nx.drawing.nx_agraph.write_dot(G,'file_test.dot')
     
 
+
     def make_graph(self):
         """
         Given a dictionary, creates a networkx graph
@@ -274,7 +277,7 @@ class analyze_kmerbarcode(object):
         #Remove nodes with less than 5 degree
         nodes_to_remove=[]
         for node in G.nodes():
-            if G.degree(node)<8:
+            if G.degree(node)<5:
                 nodes_to_remove.append(node)  
 
         for node in nodes_to_remove: 
@@ -284,6 +287,8 @@ class analyze_kmerbarcode(object):
         cc = sorted(nx.connected_components(G), key = len, reverse=True)
         print "First component = ", cc[0]
         print "Second component = ", cc[1]
+  
+     
 
 
     def read_graph(self):
