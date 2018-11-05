@@ -18,6 +18,8 @@ from collections import defaultdict
 
 
 clustervcfdicts = defaultdict(list)
+clusterhtsboxdicts = defaultdict(list)
+
 
 class compare_vcfs(object):
 
@@ -43,18 +45,31 @@ class compare_vcfs(object):
 
     def read_cluster_vcf(self, vcffile):
         """
-        Reads a VCF file and makes a dictionary 
-        Returns:dict
-        read_vcf()->dict
+        Reads a VCF file and populates a dictionary 
+        Returns:None
         """
-        cluster_vcf_dict = {}
-
+        
         vcf_reader = vcf.Reader(open(vcffile, 'r'))
 
         for record in vcf_reader:
             key = record.CHROM +"_"+str(record.POS)
             clustervcfdicts[key].append([vcffile.split("/")[-2],record])
 
+
+    def read_cluster_htsbox_tsv(self, filename, readsvcfdict):
+        '''
+        Reads a htsbox file and populates a dictionary 
+        Returns:None
+        '''        
+        with open(filename, 'r') as reader:
+            for line in reader:
+                cluster = filename.split("/")
+                cluster = cluster[len(cluster)-1].split("-")[0]
+                line = line.strip().split()
+                key = line[0] +"_"+line[1]
+                if (key in readsvcfdict and len(readsvcfdict[key].REF)==1 and len(readsvcfdict[key].ALT[0])==1):
+                    clusterhtsboxdicts[key].append([cluster, line[2].upper(), line[3].upper()])                        
+                         
 
     def compare_vcf(self, readsvcfdict):
         """
@@ -247,7 +262,12 @@ def main():
 
    for filename in glob.iglob(os.path.join(args.clusterpath, '*', '*.vcf')):
        obj.read_cluster_vcf(filename)
-       print "Finished reading ", filename ," Total records = ", len(clustervcfdicts)
+       print "Finished reading ", filename ," Total records now = ", len(clustervcfdicts)
+
+   for filename in glob.iglob(os.path.join(args.clusterpath, '*/abyss-*/', '*htsbox.tsv')):
+       obj.read_cluster_htsbox_tsv(filename, readsvcfdict)
+       print "Finished reading ", filename ," Total records now = ", len(clusterhtsboxdicts)
+   
 
    obj.compare_vcf(readsvcfdict)
 
